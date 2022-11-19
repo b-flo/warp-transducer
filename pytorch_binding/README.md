@@ -30,6 +30,12 @@ Now install the bindings: (Please make sure the GCC version >= 4.9)
 cd pytorch_binding
 python setup.py install
 ```
+If installed successfully and you are using virtualenv, plz restart your venv
+```
+deactivate
+cd <your_python_virtualenv>/bin
+source activate
+```
 
 If you try the above and get a dlopen error on OSX with anaconda3 (as recommended by pytorch):
 ```
