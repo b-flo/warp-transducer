@@ -8,7 +8,9 @@ from torch.utils.cpp_extension import BuildExtension, CppExtension
 
 
 extra_compile_args = ['-fPIC']
-if LooseVersion(torch.__version__) >= LooseVersion("1.5.0"):
+if LooseVersion(torch.__version__) >= LooseVersion("2.1.0"):
+    extra_compile_args += ['-std=c++17']
+elif LooseVersion(torch.__version__) >= LooseVersion("1.5.0"):
     extra_compile_args += ['-std=c++14']
 else:
     extra_compile_args += ['-std=c++11']

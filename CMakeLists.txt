@@ -4,6 +4,10 @@ ELSE()
     cmake_minimum_required(VERSION 2.8)
 ENDIF()
 
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 project(rnnt_release)
 
 IF (NOT APPLE)
