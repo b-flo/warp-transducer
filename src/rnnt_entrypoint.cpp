@@ -186,4 +186,53 @@ rnntStatus_t compute_rnnt_loss_fp64(const double* const activations, //BTUV
     }
 }
 
+rnntStatus_t compute_rnnt_loss_half(const half* const activations, //BTUV
+                                    half* gradients,
+                                    const int* const flat_labels,
+                                    const int* const label_lengths,
+                                    const int* const input_lengths,
+                                    int alphabet_size,
+                                    int minibatch,
+                                    half *costs,
+                                    void *workspace,
+                                    rnntOptions options) {
+
+  if (activations == nullptr ||
+      flat_labels == nullptr ||
+      label_lengths == nullptr ||
+      input_lengths == nullptr ||
+      costs == nullptr ||
+      workspace == nullptr ||
+      alphabet_size <= 0 ||
+      minibatch <= 0 ||
+      options.maxT <= 0 ||
+      options.maxU <= 0 ||
+      options.fastemit_lambda < 0)
+    return RNNT_STATUS_INVALID_VALUE;
+
+  if (options.loc == RNNT_CPU) {
+    std::cerr << "CPU execution requested in half, but is not available for this type of data" << std::endl;
+    return RNNT_STATUS_EXECUTION_FAILED;
+  } else if (options.loc == RNNT_GPU) {
+#ifdef __CUDACC__
+    GpuRNNT<half> rnnt(minibatch, options.maxT, options.maxU, alphabet_size, workspace,
+                                options.blank_label, options.fastemit_lambda, options.num_threads, options.stream);
+
+        if (gradients != NULL)
+            return rnnt.cost_and_grad(activations, gradients,
+                                        costs,
+                                        flat_labels, label_lengths,
+                                        input_lengths);
+        else
+            return rnnt.score_forward(activations, costs, flat_labels,
+                                        label_lengths, input_lengths);
+#else
+    std::cerr << "GPU execution requested, but not compiled with GPU support" << std::endl;
+    return RNNT_STATUS_EXECUTION_FAILED;
+#endif
+  } else {
+    return RNNT_STATUS_INVALID_VALUE;
+  }
+}
+
 }

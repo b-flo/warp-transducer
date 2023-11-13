@@ -177,6 +177,43 @@ __global__ void compute_grad_kernel(Tp* grads, const Tp* const acts, const Tp* c
         }
     }
 }
+template<>
+__global__ void compute_grad_kernel<128, half>(half* grads, const half* const acts, const half* const denom, const half* alphas, const half* betas, const half* const logll, const int* const xlen, const int* const ylen,
+                                               const int* const mlabels, const int minibatch, const int maxT, const int maxU, const int alphabet_size, const int blank_) {
+    int tid = threadIdx.x; // alphabet dim
+    int idx = tid;
+    int col = blockIdx.x; // mb, t, u
+
+    int u = col % maxU;
+    int bt = (col - u) / maxU;
+    int t = bt % maxT;
+    int mb = (bt - t) / maxT;
+
+    const int T = xlen[mb];
+    const int U = ylen[mb] + 1;
+    const int* labels = mlabels + mb * (maxU - 1);
+
+    if (t < T && u < U) {
+        while (idx < alphabet_size) {
+            half logpk = denom[col] + acts[col * alphabet_size + idx];
+            // half logpk = logp(denom, acts, maxT, maxU, alphabet_size, mb, t, u, idx);
+            half grad = hexp(alphas[col] + betas[col] + logpk - logll[mb]);
+            // grad to last blank transition
+            if (idx == blank_ && t == T-1 && u == U-1) {
+                grad -= hexp(alphas[col] + logpk - logll[mb]);
+            }
+            if (idx == blank_ && t < T-1) {
+                grad -= hexp(alphas[col] + logpk - logll[mb] + betas[col + maxU]);
+            }
+            if (u < U-1 && idx == labels[u]) {
+                grad -= hexp(alphas[col] + logpk - logll[mb] + betas[col+1]);
+            }
+            grads[col * alphabet_size + idx] = grad;
+
+            idx += 128;
+        }
+    }
+}
 
 template<int NT, typename Tp>
 __global__ void compute_fastemit_grad_kernel(Tp* grads, const Tp* const acts, const Tp* const denom, const Tp* alphas, const Tp* betas, const Tp* const logll, const int* const xlen, const int* const ylen, 
@@ -221,6 +258,52 @@ __global__ void compute_fastemit_grad_kernel(Tp* grads, const Tp* const acts, co
             grads[col * alphabet_size + idx] = grad;
 
             idx += NT;
+        }
+    }
+}
+template<>
+__global__ void compute_fastemit_grad_kernel<128, half>(half* grads, const half* const acts, const half* const denom, const half* alphas, const half* betas, const half* const logll, const int* const xlen, const int* const ylen,
+                                                        const int* const mlabels, const int minibatch, const int maxT, const int maxU, const int alphabet_size, const int blank_, const half fastemit_lambda) {
+    int tid = threadIdx.x; // alphabet dim
+    int idx = tid;
+    int col = blockIdx.x; // mb, t, u
+
+    int u = col % maxU;
+    int bt = (col - u) / maxU;
+    int t = bt % maxT;
+    int mb = (bt - t) / maxT;
+
+    const int T = xlen[mb];
+    const int U = ylen[mb] + 1;
+    const int* labels = mlabels + mb * (maxU - 1);
+
+    if (t < T && u < U) {
+        while (idx < alphabet_size) {
+            half logpk = denom[col] + acts[col * alphabet_size + idx];
+            // half logpk = logp(denom, acts, maxT, maxU, alphabet_size, mb, t, u, idx);
+            half grad = hexp(alphas[col] + betas[col] + logpk - logll[mb]);
+
+            half logy_btu1 = rnnt_helper::neg_inf<half>(); // log(y(t,u)) + log(beta(t, u+1))
+            if (u < U-1) {
+                logy_btu1 = denom[col] + acts[col * alphabet_size + labels[u]] + betas[col+1];
+            }
+            grad += fastemit_lambda * hexp(alphas[col] + logy_btu1 + logpk - logll[mb]);
+
+            // grad to last blank transition
+            if (idx == blank_ && t == T-1 && u == U-1) {
+                grad -= hexp(alphas[col] + logpk - logll[mb]);
+                grad -= fastemit_lambda * hexp(alphas[col] + logy_btu1 + logpk - logll[mb]);
+            }
+            if (idx == blank_ && t < T-1) {
+                grad -= hexp(alphas[col] + logpk - logll[mb] + betas[col + maxU]);
+            }
+            if (u < U-1 && idx == labels[u]) {
+                grad -= hexp(alphas[col] + logpk - logll[mb] + betas[col+1]);
+                grad -= fastemit_lambda * hexp(alphas[col] + logy_btu1 - logll[mb]);
+            }
+            grads[col * alphabet_size + idx] = grad;
+
+            idx += 128;
         }
     }
 }

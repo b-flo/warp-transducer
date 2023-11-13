@@ -125,7 +125,20 @@ rnntStatus_t compute_rnnt_loss_fp64(const double* const activations,
                              void *workspace,
                              rnntOptions options);
 
+#ifdef WARPRNNT_ENABLE_GPU
+#include <cuda_fp16.h>
 
+rnntStatus_t compute_rnnt_loss_half(const half* const activations,
+                                    half* gradients,
+                                    const int* const flat_labels,
+                                    const int* const label_lengths,
+                                    const int* const input_lengths,
+                                    int alphabet_size,
+                                    int minibatch,
+                                    half *costs,
+                                    void *workspace,
+                                    rnntOptions options);
+#endif
 
 /** For a given set of max sequence length and minibatch size return the required 
  *  workspace size. This will need to be allocated in the same memory space as your

@@ -72,6 +72,11 @@ __global__ void reduce_rows(Iop f, Rop g, const T* const acts, T* output, int nu
         output[col] = curr;
 }
 
+__device__ half log(half number)
+{
+return hlog(number);
+}
+
 template <int NT, typename Iop, typename Rop, typename T>
 __global__ void reduce_minus(Iop f, Rop g, const T* const acts, T* output, int num_rows) {
 
