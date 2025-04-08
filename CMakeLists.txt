@@ -1,7 +1,7 @@
 IF (APPLE)
     cmake_minimum_required(VERSION 3.4)
 ELSE()
-    cmake_minimum_required(VERSION 2.8)
+    cmake_minimum_required(VERSION 3.5)
 ENDIF()
 
 set(CMAKE_CXX_EXTENSIONS OFF)
